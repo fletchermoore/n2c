@@ -1,0 +1,151 @@
+#! /usr/bin/python
+
+
+# TODO
+# blank prompts
+# replace <br> with <div> maybe
+# inline notation
+# 
+
+import re, sys
+
+class FileParser:
+	
+	def __init__(self): # my regex so far: r'^\s*\*\s*(.*)'
+		self.subjectRe = re.compile(r'^\s*\*\s*(.*)') 
+		self.predicateRe = re.compile(r'^\s*{(.*?)}(.*)')
+		self.learnRe = re.compile(r'^\?(.*)')
+
+		self.dataset = []
+		self.currentSubject = None
+		self.currentVerb = None
+		self.currentObject = None
+		self.learnset = []
+		self.filepath = '/home/fletcher/uscsom/'
+		self.outFile = self.filepath
+		
+	def addLearn(self, line):
+		self.learnset.append(line.strip())
+		
+	def flush(self):
+		if (self.currentSubject != None) and (self.currentVerb != None) and (self.currentObject != None):
+			self.currentObject = self.currentObject.strip()
+			self.currentVerb = self.currentVerb.strip()
+			self.dataset.append((self.currentSubject, self.currentVerb, self.currentObject))
+		self.currentVerb = None
+		self.currentObject = None
+		
+	def updateSubject(self, line):
+		self.flush()
+		self.currentSubject = line.rstrip()
+		#print "subject updated: " + self.currentSubject
+		
+	def updatePredicate(self, verb, obj):
+		self.flush()
+		self.currentVerb = verb
+		self.currentObject = obj
+		
+	def appendPredicate(self, line):
+		if self.currentObject == None:
+			self.currentObject = ''
+		self.currentObject = self.currentObject + '\n' + line.rstrip()
+		
+	def removeComment(self, line):
+		return line.split('//')[0]
+
+	def interpretLine(self, line):
+		line = self.removeComment(line)
+		
+		m = self.learnRe.match(line)
+		if m:
+			self.addLearn(m.group(1))
+			return
+		
+		m = self.subjectRe.match(line)
+		if m:
+			self.updateSubject(m.group(1))
+			return
+			
+		m = self.predicateRe.match(line)
+		if m:
+			self.updatePredicate(m.group(1),m.group(2))
+		else:
+			self.appendPredicate(line)
+
+	def parseFile(self):
+		if len(sys.argv) < 2:
+			print 'Not enough parameters!'
+			return False
+		self.filepath = sys.argv[1]
+		
+		try:
+			source = open(self.filepath)
+		except:
+			print 'exception! '+ sys.argv[1]
+			return False
+		
+		for line in source:
+			self.interpretLine(line)
+		source.close()
+		self.flush() # add the terminal value
+		
+		return True
+		
+	def dump(self):
+		for t in self.dataset:
+			print t[0] + ': ' + t[1] + '\t' + t[2]
+		for i in self.learnset:
+			print 'learn: ' + i + '\t(no back)'
+			
+	def dumpToFile(self):
+		if self.parseFile() != True:
+			return
+		outpath = self.filepath[0:-4] + '-READY_FOR_ANKI.txt' # disaster!
+		try:
+			f = open(outpath, 'w')
+		except:
+			print 'problem opening outfile: '+ outpath
+			return 
+		for t in self.dataset:
+			f.write(self.cardLineFromTuple(t))
+		for i in self.learnset:
+			f.write('learn: ' + i + '\t(no back)' + '\n')
+		f.close()
+		
+	def cardLine(self, front, back):
+		template = front + '\t' + back
+		template = template.replace('\n','<br>')
+		return template + '\n'
+		
+	def cardLineFromTuple(self, t):
+		verb = t[1]
+		front = t[0].strip()
+		back = t[2].strip()
+		
+		if verb == ':': # {:} style
+			return self.cardLine(front, back)
+			
+		if verb.find('|') != -1: # : and | together is not possible
+			# this is so confusing
+			options = verb.split('|')
+			forwardVerb = ': ' + options[0]
+			reverseVerb = ': ' + options[1]
+			forwardFront = front + forwardVerb
+			reverseFront = back + reverseVerb
+			firstCard = self.cardLine(forwardFront, back)
+			secondCard = self.cardLine(reverseFront, front)
+			return firstCard + secondCard
+			
+		if verb.startswith('<<'):
+			if verb == '<<':
+				return self.cardLine(back, front)
+			else:
+				return self.cardLine(back + ': ' + verb[2:], front)
+		
+		# normal case
+		verb = ': ' + t[1]
+		front = front + verb
+		return self.cardLine(front, back) 
+
+p = FileParser()
+p.dumpToFile()
