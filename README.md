@@ -3,6 +3,9 @@ n2c
 
 Converts a formatted notes file to tab delimited cards
 
+To use add the `n2c.py` file to `Anki/addons/` or run from command line. If using as an Anki plugin
+you must currently convert the file using `Tool->Convert Notes...` and then import the newly created file.
+
 
 Example
 -------
@@ -62,13 +65,3 @@ reverse card, each with the respective prompt as a suffix.
 
 
 
-Current Issues
---------------
-Only handles linux style line breaks `\n`.
-
-
-TODO
-----
-* Implement as Anki 2 plugin.
-* Fix line breaks for windows.
-* Change output file name.
