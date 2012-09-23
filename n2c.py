@@ -15,14 +15,16 @@ class FileParser:
 		self.subjectRe = re.compile(r'^\s*\*\s*(.*)') 
 		self.predicateRe = re.compile(r'^\s*{(.*?)}(.*)')
 		self.learnRe = re.compile(r'^\?(.*)')
+		
+		self.reset()
 
+		
+	def reset(self):
 		self.dataset = []
+		self.learnset = []
 		self.currentSubject = None
 		self.currentVerb = None
 		self.currentObject = None
-		self.learnset = []
-		self.filepath = ''
-		self.outFile = self.filepath
 		
 	def addLearn(self, line):
 		self.learnset.append(line.strip())
@@ -37,18 +39,18 @@ class FileParser:
 		
 	def updateSubject(self, line):
 		self.flush()
-		self.currentSubject = line.rstrip()
+		self.currentSubject = line.strip()
 		#print "subject updated: " + self.currentSubject
 		
 	def updatePredicate(self, verb, obj):
 		self.flush()
-		self.currentVerb = verb
-		self.currentObject = obj
+		self.currentVerb = verb.strip()
+		self.currentObject = obj.strip()
 		
 	def appendPredicate(self, line):
 		if self.currentObject == None:
 			self.currentObject = ''
-		self.currentObject = self.currentObject + '\n' + line.rstrip()
+		self.currentObject = self.currentObject + '\n' + line.strip()
 		
 	def removeComment(self, line):
 		return line.split('//')[0]
@@ -91,11 +93,15 @@ class FileParser:
 			print 'exception! '+ sys.argv[1]
 			return False
 		
-		for line in source:
-			self.interpretLine(line)
+		# what happens if the file is too big?	
+		lines = source.read().splitlines() 
+		print self.filepath, len(lines)
 		source.close()
-		self.flush() # add the terminal value
 		
+		for line in lines:
+			self.interpretLine(line)
+
+		self.flush() # add the terminal value
 		return True
 		
 	def dump(self):
@@ -118,6 +124,7 @@ class FileParser:
 		for i in self.learnset:
 			f.write('learn: ' + i + '\t(no back)' + '\n')
 		f.close()
+		self.reset()
 		
 	def cardLine(self, front, back):
 		template = front + '\t' + back
@@ -162,7 +169,6 @@ class FileParser:
 	def actionConvertNotes(self):
 		filepath = QFileDialog.getOpenFileName(mw, 'Choose File', 
 			mw.pm.base, "Plain text files (*.txt)")
-			
 		self.dumpToFile(filepath)
 
 
