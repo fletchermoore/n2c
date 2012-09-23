@@ -5,7 +5,7 @@
 # blank prompts
 # replace <br> with <div> maybe
 # inline notation
-# 
+# integrate with anki import feature
 
 import re, sys
 
@@ -21,7 +21,7 @@ class FileParser:
 		self.currentVerb = None
 		self.currentObject = None
 		self.learnset = []
-		self.filepath = '/home/fletcher/uscsom/'
+		self.filepath = ''
 		self.outFile = self.filepath
 		
 	def addLearn(self, line):
@@ -72,11 +72,15 @@ class FileParser:
 		else:
 			self.appendPredicate(line)
 
-	def parseFile(self):
-		if len(sys.argv) < 2:
-			print 'Not enough parameters!'
-			return False
-		self.filepath = sys.argv[1]
+	def parseFile(self, filepath = None):
+		if filepath == None:
+			if len(sys.argv) < 2:
+				print 'Not enough parameters!'
+				return False
+			self.filepath = sys.argv[1]
+		else:
+			self.filepath = filepath
+		
 		if self.filepath[-4:] != '.txt':
 			print 'Filename must end in .txt'
 			return False
@@ -100,8 +104,8 @@ class FileParser:
 		for i in self.learnset:
 			print 'learn: ' + i + '\t(no back)'
 			
-	def dumpToFile(self):
-		if self.parseFile() != True:
+	def dumpToFile(self, filepath=None):
+		if self.parseFile(filepath) != True:
 			return
 		outpath = self.filepath[0:-4] + '-READY_FOR_ANKI.txt' # disaster!
 		try:
@@ -148,7 +152,27 @@ class FileParser:
 		# normal case
 		verb = ': ' + t[1]
 		front = front + verb
-		return self.cardLine(front, back) 
+		return self.cardLine(front, back)
+		
+	def runAsAnkiPlugin(self):
+		action = QAction("Convert Notes...", mw)
+		mw.connect(action, SIGNAL("triggered()"), self.actionConvertNotes)
+		mw.form.menuTools.addAction(action)
+		
+	def actionConvertNotes(self):
+		filepath = QFileDialog.getOpenFileName(mw, 'Choose File', 
+			mw.pm.base, "Plain text files (*.txt)")
+			
+		self.dumpToFile(filepath)
+
 
 p = FileParser()
-p.dumpToFile()
+# go go go!
+try:
+	from aqt import mw
+	from aqt.utils import showInfo
+	from aqt.qt import *
+	p.runAsAnkiPlugin()
+except ImportError:
+	# not anki addon, must be run from command line
+	p.dumpToFile()
