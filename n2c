@@ -77,6 +77,9 @@ class FileParser:
 			print 'Not enough parameters!'
 			return False
 		self.filepath = sys.argv[1]
+		if self.filepath[-4:] != '.txt':
+			print 'Filename must end in .txt'
+			return False
 		
 		try:
 			source = open(self.filepath)
