@@ -17,14 +17,17 @@ class FileParser:
 		self.learnRe = re.compile(r'^\?(.*)')
 		
 		self.reset()
+		self.isAnkiPlugin = False
 
 		
 	def reset(self):
 		self.dataset = []
 		self.learnset = []
+		self.cardCount = 0;
 		self.currentSubject = None
 		self.currentVerb = None
 		self.currentObject = None
+		self.status = None
 		
 	def addLearn(self, line):
 		self.learnset.append(line.strip())
@@ -90,12 +93,13 @@ class FileParser:
 		try:
 			source = open(self.filepath)
 		except:
-			print 'exception! '+ sys.argv[1]
+			self.status = "Failed to open file %s for reading." % self.filepath
+			print self.status
 			return False
 		
 		# what happens if the file is too big?	
 		lines = source.read().splitlines() 
-		print self.filepath, len(lines)
+		#print self.filepath, len(lines)
 		source.close()
 		
 		for line in lines:
@@ -117,14 +121,15 @@ class FileParser:
 		try:
 			f = open(outpath, 'w')
 		except:
-			print 'problem opening outfile: '+ outpath
+			self.status = "Failed to open file %s for writing." % outpath
+			print self.status
 			return 
 		for t in self.dataset:
 			f.write(self.cardLineFromTuple(t))
 		for i in self.learnset:
 			f.write('learn: ' + i + '\t(no back)' + '\n')
 		f.close()
-		self.reset()
+		self.status = "File \"%s\" <br>created successfully. %d card(s) created." % (outpath, self.cardCount)
 		
 	def cardLine(self, front, back):
 		template = front + '\t' + back
@@ -135,6 +140,7 @@ class FileParser:
 		verb = t[1]
 		front = t[0].strip()
 		back = t[2].strip()
+		self.cardCount = self.cardCount + 1 # a bit presumptuous?
 		
 		if verb == ':': # {:} style
 			return self.cardLine(front, back)
@@ -148,6 +154,7 @@ class FileParser:
 			reverseFront = back + reverseVerb
 			firstCard = self.cardLine(forwardFront, back)
 			secondCard = self.cardLine(reverseFront, front)
+			self.cardCount = self.cardCount + 1
 			return firstCard + secondCard
 			
 		if verb.startswith('<<'):
@@ -162,6 +169,7 @@ class FileParser:
 		return self.cardLine(front, back)
 		
 	def runAsAnkiPlugin(self):
+		self.isAnkiPlugin = True # unused
 		action = QAction("Convert Notes...", mw)
 		mw.connect(action, SIGNAL("triggered()"), self.actionConvertNotes)
 		mw.form.menuTools.addAction(action)
@@ -170,13 +178,20 @@ class FileParser:
 		filepath = QFileDialog.getOpenFileName(mw, 'Choose File', 
 			mw.pm.base, "Plain text files (*.txt)")
 		self.dumpToFile(filepath)
+		self.reportStatus()
+		self.reset()
+		
+	def reportStatus(self):
+		if self.status != None:
+			tooltip(self.status, 7000)
+		
 
 
 p = FileParser()
 # go go go!
 try:
 	from aqt import mw
-	from aqt.utils import showInfo
+	from aqt.utils import showInfo, tooltip
 	from aqt.qt import *
 	p.runAsAnkiPlugin()
 except ImportError:
